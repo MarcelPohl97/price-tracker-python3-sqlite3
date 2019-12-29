@@ -111,7 +111,7 @@ def add_product():
         except:
             print("Already created data entry point")
 
-        URL = "https://www.amazon.de/SteelSeries-Gaming-Maus-TrueMove-Beidh%C3%A4ndiges-programmierbare/dp/B07XV18DM7/ref=sr_1_2?__mk_de_DE=%C3%85M%C3%85%C5%BD%C3%95%C3%91&keywords=steelseries+sensei+ten&qid=1577017175&sr=8-2"
+        URL = "https://www.amazon.de/dp/B07G9RM9GN/ref=AGS_NW_DE_GW_D_P0_MSO_C?pf_rd_p=9b90496b-f129-4d8a-b6e6-e4287712d446&pf_rd_r=MJ8D247GQ6JPNA6CD82M"
         headers = {"User-Agent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36'}
 
         page = requests.get(URL, headers=headers)
@@ -137,24 +137,103 @@ def add_product():
         product = formatted_title
         price = formatted_price2
         time = date_time
+        c.execute('SELECT * from ' + user_id + ' WHERE link="%s"' % (URL))
+        product_check = c.fetchone()
+        if product_check:
+            print("Product already exists in your product list")
+            for check in product_check:
+                print(check)
 
-        c.execute("INSERT INTO " + user_id + " (link, product, price, time_date) VALUES (?,?,?,?) ", (link, product, price, time))
-        c.execute('SELECT * from ' + user_id)
-        print(c.fetchall())
-
-        # Save (commit) the changes
-        conn.commit()
-        print("Successfully added product")
+        else:
+            c.execute("INSERT INTO " + user_id + " (link, product, price, time_date) VALUES (?,?,?,?) ", (link, product, price, time))
+            c.execute('SELECT * from ' + user_id)
+            print(c.fetchall())
+            # Save (commit) the changes
+            conn.commit()
+            print("Successfully added product")
     else:
         print("Wrong userid or userpw")
 
 def show_product():
-    user_id = input("Put in your id and pw as data entry point for your products")
+    user_id = input("Put in your id as data entry point for your products")
     c.execute('SELECT * from ' + user_id)
     product_results = c.fetchall()
     for products in product_results:
         print(products)
-    
+
+def check_product():
+    user_id = input("Put in your id as data entry point for your products")
+    id_key = int(input("Put in the key of your product you wish to check for a price increase or decrease"))
+    c.execute('SELECT * from ' + user_id + ' WHERE id="%s"' % (id_key))
+    product_results = c.fetchall()
+    for products in product_results:
+        old_price = products[3]
+        current_price_check = re.sub('[€$]', '', old_price)
+        current_price_check_add_float = re.sub('[,]', '.', current_price_check)
+        current_price_check_final_format = current_price_check_add_float
+
+    URL = "https://www.amazon.de/dp/B07G9RM9GN/ref=AGS_NW_DE_GW_D_P0_MSO_C?pf_rd_p=9b90496b-f129-4d8a-b6e6-e4287712d446&pf_rd_r=MJ8D247GQ6JPNA6CD82M"
+    headers = {
+        "User-Agent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36'}
+
+    page = requests.get(URL, headers=headers)
+
+    soup = BeautifulSoup(page.text, "html.parser")
+
+    title = soup.find(id="productTitle")
+    price = soup.find(id="priceblock_ourprice")
+
+    dt_now = datetime.now()
+
+    date_time = dt_now.strftime("%d/%m/%Y %H:%M:%S")
+
+    formatted_title = title.text.replace("\n", "").strip()
+
+    formatted_price = price.text.replace("\n", "").strip()
+    formatted_price2 = re.sub('[\xa0]', '', formatted_price)
+    new_price_check = re.sub('[€$]', '', formatted_price)
+    new_price_check_add_float = re.sub('[,]', '.', new_price_check)
+    new_price_check_remove_white_space = new_price_check_add_float.strip()
+    new_price_check_final_format = new_price_check_remove_white_space
+
+    #link = URL
+    #product = formatted_title
+    price = formatted_price2
+    time = date_time
+
+    if current_price_check_final_format > new_price_check_final_format:
+        print("Price went down!")
+    elif current_price_check_final_format < new_price_check_final_format:
+        print("Price went up")
+    else:
+        print("Price remains the same")
+
+    over_write_data = input("Do you want to update your data? (Yes/No)")
+    new_price_check_delete_float = re.sub('[.]', ',', new_price_check)
+    new_price_check_add_euro = new_price_check_delete_float + "€"
+    new_price_check_final_reformat = re.sub('[\xa0]', '', new_price_check_add_euro)
+
+    if over_write_data == "Yes":
+        c.execute('UPDATE ' + user_id + ' SET price="%s", time_date="%s" WHERE id="%s"' % (new_price_check_final_reformat, time, id_key))
+        conn.commit()
+        print("Successfully updated product")
+
+    else:
+        print("You choose to not update your product price and time")
+
+
+
+
+def remove_product():
+    user_id = input("Put in your id as data entry point for your products")
+    id_key = int(input("Put in the key of your product you wish to remove"))
+    c.execute('DELETE from ' + user_id + ' WHERE id="%s"' % (id_key))
+    conn.commit()
+    c.execute('SELECT * from ' + user_id)
+    product_results = c.fetchall()
+    for products in product_results:
+        print(products)
+
 
 def menu1():
     print("Type in the following numbers for your next action:")
@@ -177,19 +256,18 @@ def menu2():
     print("1. Add product \n"
           "2. Show products \n"
           "3. Check product \n"
-          "4. Edit product \n"
-          "5. Remove product \n"
-          "6. Change Password \n"
-          "7. Log out")
+          "4. Remove product \n"
+          "5. Change Password \n"
+          "6. Log out")
     action = input()
     if action == str(1):
         add_product()
     elif action == str(2):
         show_product()
     elif action == str(3):
-        print("Edit product")
+        check_product()
     elif action == str(4):
-        print("Remove product")
+        remove_product()
     elif action == str(5):
         print("Log out")
     
