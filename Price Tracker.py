@@ -71,8 +71,9 @@ def forgot_password():
     # check if name and password exists from user
     c.execute("SELECT * from users WHERE email=:email", {'email': email})
     data_records = c.fetchall()
+    print(data_records)
     # wenn fetch nicht None ist dann user und password erkannt vom user
-    if c.fetchone() is not None:
+    if c.fetchall() is not None:
         print("Email is available Sending you a code that you need to submit to change your password")
         reset_code = generate_code
         port = 587  # For starttls
@@ -80,7 +81,7 @@ def forgot_password():
         sender_email = "pricercheckyourproducts@gmail.com"
         receiver_email = email
         password = "pricer!3%7)"
-        message = "Subject: <Reset code for password>" + "\n" + "Hello " + str(data_records[0][0]) + "\n " + " here is your reset code: " + reset_code
+        message = "Subject: <Reset code for password>" + "\n" + "Hello " + str(data_records[0][1]) + "\n " + " here is your reset code: " + reset_code
 
         context = ssl.create_default_context()
 
@@ -109,7 +110,6 @@ def forgot_password():
 
 
 def add_product():
-    c.execute("INSERT INTO products VALUES (:id, :login, :password, :email)", {'id': None, 'user_login': userid, 'link': password, 'product': email, 'price':, 'time_date':})
 
     URL = "https://www.amazon.de/dp/B07G9RM9GN/ref=AGS_NW_DE_GW_D_P0_MSO_C?pf_rd_p=9b90496b-f129-4d8a-b6e6-e4287712d446&pf_rd_r=MJ8D247GQ6JPNA6CD82M"
     headers = {"User-Agent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36'}
@@ -137,7 +137,7 @@ def add_product():
     product = formatted_title
     price = formatted_price2
     time = date_time
-    c.execute('SELECT * from ' + user_id + ' WHERE link="%s"' % (URL))
+    c.execute("SELECT * from products WHERE user_id=:user_id AND link=:link", {'user_id': userid, 'link': link})
     product_check = c.fetchone()
     if product_check:
         print("Product already exists in your product list")
@@ -145,8 +145,8 @@ def add_product():
             print(check)
 
     else:
-        c.execute("INSERT INTO " + user_id + " (link, product, price, time_date) VALUES (?,?,?,?) ", (link, product, price, time))
-        c.execute('SELECT * from ' + user_id)
+        c.execute("INSERT INTO products VALUES (:id, :login, :password, :email)", {'id': None, 'user_login': userid, 'link': link, 'product': product, 'price': price, 'time_date': time})
+        c.execute("SELECT * from products WHERE user_id=:user_id", {'user_id': userid})
         print(c.fetchall())
         # Save (commit) the changes
         conn.commit()
