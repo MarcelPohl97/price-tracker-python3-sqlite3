@@ -9,11 +9,38 @@ import string
 import smtplib
 import ssl
 
-conn = sqlite3.connect('user.db')
+conn = sqlite3.connect('pricer.db')
 c = conn.cursor()
 login = False
 last_login = ""
 
+def create_register_table():
+    c.execute('''CREATE TABLE if not exists register
+                 (id integer primary key,
+                 login text, 
+                 password text, 
+                 email text)''')
+
+def create_user_table():
+    c.execute('''CREATE TABLE if not exists user 
+                (id integer primary key, 
+                register_id integer, 
+                register_login text, 
+                register_password text, 
+                register_email text)''')
+
+def create_products_table():
+    c.execute('''CREATE TABLE if not exists products 
+                (id integer primary key,
+                user_id integer,
+                link text,
+                product text,
+                price float,
+                time_date text)''')
+
+create_register_table()
+create_user_table()
+create_products_table()
 
 try:
     c.execute('''CREATE TABLE register
@@ -21,7 +48,6 @@ try:
 except:
     print("Already created data entry point")
 
-#cursor object
 c = conn.cursor()
 
 def register_account():
