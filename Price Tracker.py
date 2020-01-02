@@ -12,54 +12,36 @@ import ssl
 conn = sqlite3.connect('pricer.db')
 c = conn.cursor()
 login = False
-last_login = ""
 
-def create_register_table():
-    c.execute('''CREATE TABLE if not exists register
+def create_user_table():
+    c.execute('''CREATE TABLE if not exists users
                  (id integer primary key,
                  login text, 
                  password text, 
-                 email text)''')
-
-def create_user_table():
-    c.execute('''CREATE TABLE if not exists user 
-                (id integer primary key, 
-                register_id integer, 
-                register_login text, 
-                register_password text, 
-                register_email text)''')
+                 email varchar)''')
 
 def create_products_table():
     c.execute('''CREATE TABLE if not exists products 
                 (id integer primary key,
-                user_id integer,
+                user_login text,
                 link text,
                 product text,
                 price float,
                 time_date text)''')
 
-create_register_table()
 create_user_table()
 create_products_table()
-
-try:
-    c.execute('''CREATE TABLE register
-             (username text, password text, email text)''')
-except:
-    print("Already created data entry point")
-
-c = conn.cursor()
 
 def register_account():
     ID = input("Choose id for your account")
     password = input("Choose password for your account")
     email = input("Choose email for your account")
-    c.execute('SELECT * from register WHERE username="%s" OR email="%s"' % (ID, email))
+
+    c.execute("SELECT * FROM users WHERE login=:login OR email=:email", {'login': ID, 'email': email})
     if c.fetchone():
         print("User already exists")
     else:
-        c.execute("INSERT INTO register VALUES ('%s', '%s', '%s')" % (ID, password, email))
-        # Save (commit) the changes
+        c.execute("INSERT INTO users VALUES (:id, :login, :password, :email)", {'id': None, 'login': ID, 'password': password, 'email': email})
         conn.commit()
         print("Successfully registered")
 
@@ -69,11 +51,12 @@ def login_account():
     userpw = input("PW:")
 
     # check if name and password exists from user
-    c.execute('SELECT * from register WHERE username="%s" AND password="%s"' % (userid, userpw))
-    #wenn fetch nicht None ist dann user und password erkannt vom user
-    if c.fetchone() is not None:
-        print("Welcome successfully logged in!")
+    c.execute("SELECT * FROM users WHERE login=:login AND password=:password", {'login': userid, 'password': userpw})
+    user_authentication = c.fetchone()
+    if user_authentication is not None:
+        print("Welcome {} successfully logged in!".format(user_authentication[1]))
         login = True
+
     else:
         print("Login failed")
 
@@ -84,11 +67,10 @@ def forgot_password():
     generate_code = ''.join(random.choice(lettersAndDigits) for i in range(stringLength))
 
     email = input("Put in your email to get reset link")
-    c.execute('SELECT * from register WHERE email="%s"' % (email))
-    data_records = c.fetchall()
 
     # check if name and password exists from user
-    c.execute('SELECT * from register WHERE email="%s"' % (email))
+    c.execute("SELECT * from users WHERE email=:email", {'email': email})
+    data_records = c.fetchall()
     # wenn fetch nicht None ist dann user und password erkannt vom user
     if c.fetchone() is not None:
         print("Email is available Sending you a code that you need to submit to change your password")
@@ -115,7 +97,7 @@ def forgot_password():
             userpw = input("New PW: ")
             # check if name and password exists from user
             try:
-                c.execute('UPDATE register SET password="%s" WHERE email="%s"' % (userpw, email))
+                c.execute("UPDATE users SET password=:password WHERE email=:email", {'password': userpw, 'email': email})
                 print("Successfully changed your password")
             # wenn fetch nicht None ist dann user und password erkannt vom user
             except:
@@ -127,58 +109,48 @@ def forgot_password():
 
 
 def add_product():
-    user_id = input("Put in your id as data entry point for your products")
-    if user_id == userid:
+    c.execute("INSERT INTO products VALUES (:id, :login, :password, :email)", {'id': None, 'user_login': userid, 'link': password, 'product': email, 'price':, 'time_date':})
 
-        try:
-            c.execute('''CREATE TABLE %s
-                     (id integer primary key, link text, product text, price blob, time_date blob)''' % (user_id))
-            print("Created product table for user")
-        except:
-            print("Already created data entry point")
+    URL = "https://www.amazon.de/dp/B07G9RM9GN/ref=AGS_NW_DE_GW_D_P0_MSO_C?pf_rd_p=9b90496b-f129-4d8a-b6e6-e4287712d446&pf_rd_r=MJ8D247GQ6JPNA6CD82M"
+    headers = {"User-Agent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36'}
 
-        URL = "https://www.amazon.de/dp/B07G9RM9GN/ref=AGS_NW_DE_GW_D_P0_MSO_C?pf_rd_p=9b90496b-f129-4d8a-b6e6-e4287712d446&pf_rd_r=MJ8D247GQ6JPNA6CD82M"
-        headers = {"User-Agent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36'}
+    page = requests.get(URL, headers=headers)
 
-        page = requests.get(URL, headers=headers)
+    soup = BeautifulSoup(page.text, "html.parser")
 
-        soup = BeautifulSoup(page.text, "html.parser")
+    title = soup.find(id="productTitle")
+    price = soup.find(id="priceblock_ourprice")
+    current_price = "70$"
+    current_price_check = re.sub('[€$]', '', current_price)
 
-        title = soup.find(id="productTitle")
-        price = soup.find(id="priceblock_ourprice")
-        current_price = "70$"
-        current_price_check = re.sub('[€$]', '', current_price)
+    dt_now = datetime.now()
 
-        dt_now = datetime.now()
+    date_time = dt_now.strftime("%d/%m/%Y %H:%M:%S")
 
-        date_time = dt_now.strftime("%d/%m/%Y %H:%M:%S")
+    formatted_title = title.text.replace("\n", "").strip()
 
-        formatted_title = title.text.replace("\n", "").strip()
+    formatted_price = price.text.replace("\n", "").strip()
+    formatted_price2 = re.sub('[\xa0]', '', formatted_price)
+    new_price_check = re.sub('[€$]', '', formatted_price)
 
-        formatted_price = price.text.replace("\n", "").strip()
-        formatted_price2 = re.sub('[\xa0]', '', formatted_price)
-        new_price_check = re.sub('[€$]', '', formatted_price)
+    link = URL
+    product = formatted_title
+    price = formatted_price2
+    time = date_time
+    c.execute('SELECT * from ' + user_id + ' WHERE link="%s"' % (URL))
+    product_check = c.fetchone()
+    if product_check:
+        print("Product already exists in your product list")
+        for check in product_check:
+            print(check)
 
-        link = URL
-        product = formatted_title
-        price = formatted_price2
-        time = date_time
-        c.execute('SELECT * from ' + user_id + ' WHERE link="%s"' % (URL))
-        product_check = c.fetchone()
-        if product_check:
-            print("Product already exists in your product list")
-            for check in product_check:
-                print(check)
-
-        else:
-            c.execute("INSERT INTO " + user_id + " (link, product, price, time_date) VALUES (?,?,?,?) ", (link, product, price, time))
-            c.execute('SELECT * from ' + user_id)
-            print(c.fetchall())
-            # Save (commit) the changes
-            conn.commit()
-            print("Successfully added product")
     else:
-        print("Wrong userid or userpw")
+        c.execute("INSERT INTO " + user_id + " (link, product, price, time_date) VALUES (?,?,?,?) ", (link, product, price, time))
+        c.execute('SELECT * from ' + user_id)
+        print(c.fetchall())
+        # Save (commit) the changes
+        conn.commit()
+        print("Successfully added product")
 
 def show_product():
     user_id = input("Put in your id as data entry point for your products")
