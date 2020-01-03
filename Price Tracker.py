@@ -61,7 +61,6 @@ def login_account():
         print("Login failed")
 
 def forgot_password():
-    global login
     stringLength = 10
     lettersAndDigits = string.ascii_letters + string.digits
     generate_code = ''.join(random.choice(lettersAndDigits) for i in range(stringLength))
@@ -137,35 +136,31 @@ def add_product():
     product = formatted_title
     price = formatted_price2
     time = date_time
-    c.execute("SELECT * from products WHERE user_id=:user_id AND link=:link", {'user_id': userid, 'link': link})
+    c.execute("SELECT * from products WHERE user_login=:user_login AND link=:link", {'user_login': userid, 'link': link})
     product_check = c.fetchone()
     if product_check:
         print("Product already exists in your product list")
-        for check in product_check:
-            print(check)
+        print(product_check)
 
     else:
-        c.execute("INSERT INTO products VALUES (:id, :login, :password, :email)", {'id': None, 'user_login': userid, 'link': link, 'product': product, 'price': price, 'time_date': time})
-        c.execute("SELECT * from products WHERE user_id=:user_id", {'user_id': userid})
+        c.execute("INSERT INTO products VALUES (:id, :user_login, :link, :product, :price, :time_date)", {'id': None, 'user_login': userid, 'link': link, 'product': product, 'price': price, 'time_date': time})
+        c.execute("SELECT * from products WHERE user_login=:user_login", {'user_login': userid})
         print(c.fetchall())
-        # Save (commit) the changes
         conn.commit()
         print("Successfully added product")
 
 def show_product():
-    user_id = input("Put in your id as data entry point for your products")
-    c.execute('SELECT * from ' + user_id)
+    c.execute("SELECT * from products WHERE user_login=:user_login", {'user_login': userid})
     product_results = c.fetchall()
     for products in product_results:
         print(products)
 
 def check_product():
-    user_id = input("Put in your id as data entry point for your products")
     id_key = int(input("Put in the key of your product you wish to check for a price increase or decrease"))
-    c.execute('SELECT * from ' + user_id + ' WHERE id="%s"' % (id_key))
+    c.execute("SELECT * from products WHERE user_login=:user_login AND id=:id", {'user_login': userid, 'id':id_key})
     product_results = c.fetchall()
     for products in product_results:
-        old_price = products[3]
+        old_price = products[4]
         current_price_check = re.sub('[€$]', '', old_price)
         current_price_check_add_float = re.sub('[,]', '.', current_price_check)
         current_price_check_final_format = current_price_check_add_float
@@ -194,6 +189,7 @@ def check_product():
     new_price_check_remove_white_space = new_price_check_add_float.strip()
     new_price_check_final_format = new_price_check_remove_white_space
 
+
     #link = URL
     #product = formatted_title
     price = formatted_price2
@@ -212,25 +208,40 @@ def check_product():
     new_price_check_final_reformat = re.sub('[\xa0]', '', new_price_check_add_euro)
 
     if over_write_data == "Yes":
-        c.execute('UPDATE ' + user_id + ' SET price="%s", time_date="%s" WHERE id="%s"' % (new_price_check_final_reformat, time, id_key))
+        c.execute("UPDATE products SET price=:price, time_date=:time_date WHERE id=:id", {'price': new_price_check_final_reformat, 'time_date': time, 'id': id_key})
         conn.commit()
         print("Successfully updated product")
 
     else:
-        print("You choose to not update your product price and time")
+        print("You choose to not update your product price and date-time")
 
 
 
 
 def remove_product():
-    user_id = input("Put in your id as data entry point for your products")
     id_key = int(input("Put in the key of your product you wish to remove"))
-    c.execute('DELETE from ' + user_id + ' WHERE id="%s"' % (id_key))
+    c.execute("DELETE from products WHERE user_login=:user_login AND id=:id", {'user_login': userid, 'id': id_key})
     conn.commit()
-    c.execute('SELECT * from ' + user_id)
+    c.execute("SELECT * from products WHERE user_login=:user_login", {'user_login': userid})
     product_results = c.fetchall()
     for products in product_results:
         print(products)
+
+def change_password():
+    old_password = input("Type in your old password")
+    if old_password == userpw:
+        new_password = input("Type in your new password")
+        try:
+            c.execute("UPDATE users SET password=:password WHERE login=:login", {'password': new_password, 'login': userid})
+            conn.commit()
+            print("Successfully updated your password!")
+        except:
+            print("Couldnt update password")
+    else:
+        print("Your old password was wrong")
+def logout():
+    global login
+    login = False
 
 
 def menu1():
@@ -267,7 +278,9 @@ def menu2():
     elif action == str(4):
         remove_product()
     elif action == str(5):
-        print("Log out")
+        change_password()
+    elif action == str(6):
+        logout()
     
 
 while True:
