@@ -386,7 +386,7 @@ def logout():
 
 
 
-def menu1():
+def landing_menu():
 
     print("Type in the following numbers for your next action:")
     print("1. Register Account \n"
@@ -407,7 +407,7 @@ def menu1():
     else:
         print("{0} is not a valid choice".format(choice))
         
-def menu2():
+def user_menu():
     print("Type in the following numbers for your next action:")
     print("1. Add product \n"
           "2. Show products \n"
@@ -435,9 +435,9 @@ def menu2():
 
 while True:
     if login == False:
-        menu1()
+        landing_menu()
     elif login == True:
-        menu2()
+        user_menu()
 
 
 
